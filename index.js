@@ -96,34 +96,119 @@ client.on('interactionCreate', async interaction => {
   const userId = interaction.user.id;
   ensureUser(userId);
 
-  // --- /daily command ---
-  if (interaction.commandName === 'daily') {
-    const now = Date.now();
-    if (now - data.users[userId].lastDaily < 24 * 60 * 60 * 1000) {
-      return interaction.reply({
-        content: '⏳ You can claim your daily again in 24 hours.',
-        ephemeral: true,
-      }).catch(console.error);
+  try {
+    switch (interaction.commandName) {
+
+      case 'daily': {
+        const now = Date.now();
+        if (now - data.users[userId].lastDaily < 24 * 60 * 60 * 1000) {
+          return interaction.reply({
+            content: '⏳ You can claim your daily again in 24 hours.',
+            ephemeral: true,
+          });
+        }
+        const amount = 100;
+        data.users[userId].balance += amount;
+        data.users[userId].lastDaily = now;
+        saveData();
+        return interaction.reply(`🎁 You claimed your daily ${amount} coins!`);
+      }
+
+      case 'balance':
+        return interaction.reply(`💰 Your balance: ${data.users[userId].balance} coins`);
+
+      case 'addmatch': {
+        if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+        const team1 = interaction.options.getString('team1');
+        const team2 = interaction.options.getString('team2');
+        const odds1 = interaction.options.getNumber('odds1');
+        const odds2 = interaction.options.getNumber('odds2');
+        const matchId = data.matches.length + 1;
+        data.matches.push({ id: matchId, team1, team2, odds1, odds2, result: null });
+        saveData();
+        return interaction.reply(`✅ Match added: ${team1} vs ${team2} (ID: ${matchId})`);
+      }
+
+      case 'deletematch': {
+        if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+        const matchId = interaction.options.getInteger('match_id');
+        const index = data.matches.findIndex(m => m.id === matchId);
+        if (index === -1) return interaction.reply(`❌ Match ID ${matchId} not found.`);
+        data.matches.splice(index, 1);
+        saveData();
+        return interaction.reply(`✅ Match ID ${matchId} deleted.`);
+      }
+
+      case 'setresult': {
+        if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+        const matchId = interaction.options.getInteger('match_id');
+        const winner = interaction.options.getString('winner');
+        const match = data.matches.find(m => m.id === matchId);
+        if (!match) return interaction.reply(`❌ Match ID ${matchId} not found.`);
+        match.result = winner;
+        saveData();
+        return interaction.reply(`✅ Result set for match ${matchId}: winner is ${winner}`);
+      }
+
+      case 'fixtures': {
+        if (interaction.commandName === 'fixtures') {
+  const { EmbedBuilder } = require('discord.js');
+
+  if (data.matches.length === 0) {
+    return interaction.reply('⚠️ No matches available.');
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle('📋 Current Matches')
+    .setColor(0x00AE86);
+
+  data.matches.forEach(match => {
+    const resultText = match.result ? ` (Winner: ${match.result})` : '';
+    embed.addFields({
+      name: `ID: ${match.id} - ${match.team1} vs ${match.team2}`,
+      value: `Odds: ${match.team1} (${match.odds1}) vs ${match.team2} (${match.odds2})${resultText}`,
+      inline: false
+    });
+  });
+
+  return interaction.reply({ embeds: [embed] });
+}
+      }
+
+      case 'bet': {
+        const matchId = interaction.options.getInteger('match_id');
+        const team = interaction.options.getString('team');
+        const amount = interaction.options.getInteger('amount');
+
+        if (data.users[userId].balance < amount) return interaction.reply('❌ Not enough coins.');
+
+        const match = data.matches.find(m => m.id === matchId);
+        if (!match) return interaction.reply('❌ Match not found.');
+        if (match.result) return interaction.reply('⚠️ Match already finished.');
+
+        data.users[userId].balance -= amount;
+        if (!match.bets) match.bets = [];
+        match.bets.push({ userId, team, amount });
+        saveData();
+        return interaction.reply(`✅ You bet ${amount} coins on ${team} for match ID ${matchId}`);
+      }
+
+      case 'leaderboard': {
+        const leaderboard = Object.entries(data.users)
+          .sort((a, b) => b[1].balance - a[1].balance)
+          .map(([id, u], idx) => `${idx + 1}. <@${id}> - ${u.balance} coins`)
+          .slice(0, 10)
+          .join('\n');
+        return interaction.reply(`🏆 Top users:\n${leaderboard || 'No users yet.'}`);
+      }
+
+      default:
+        return interaction.reply('❌ Unknown command.');
     }
-    const amount = 100;
-    data.users[userId].balance += amount;
-    data.users[userId].lastDaily = now;
-    saveData();
-    return interaction.reply(`🎁 You claimed your daily ${amount} coins!`).catch(console.error);
+  } catch (err) {
+    console.error(err);
+    if (!interaction.replied) await interaction.reply('❌ Something went wrong.');
   }
-
-  // --- /balance command ---
-  if (interaction.commandName === 'balance') {
-    return interaction.reply(`💰 Your balance: ${data.users[userId].balance} coins`).catch(console.error);
-  }
-
-  // --- Admin-only commands ---
-  const adminOnly = ['addmatch', 'deletematch', 'setresult'];
-  if (adminOnly.includes(interaction.commandName) && !ADMIN_IDS.includes(userId)) {
-    return interaction.reply({ content: '❌ Not authorized.', ephemeral: true }).catch(console.error);
-  }
-
-  // TODO: implement addmatch, deletematch, setresult, fixtures, bet, leaderboard commands
 });
 
 // --- Login ---

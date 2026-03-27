@@ -1,6 +1,7 @@
+require('dotenv').config();
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
-const git add. = process.env.BOT_TOKEN;
+const token = process.env.BOT_TOKEN;;
 const clientId = process.env.CLIENT_ID;
 
 if (!clientId || !token) {

@@ -210,6 +210,7 @@ client.on('interactionCreate', async interaction => {
 
   // REMOVE match (ends it)
   data.matches.splice(matchIndex, 1);
+  
 
   saveData();
 

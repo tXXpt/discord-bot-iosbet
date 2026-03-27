@@ -19,44 +19,56 @@ const commands = [
     .setDescription('Check your coin balance'),
 
   new SlashCommandBuilder()
-    .setName('addmatch')
-    .setDescription('Add a new match (admin only)')
-    .addStringOption(option =>
-      option.setName('team1')
-        .setDescription('Team 1 name')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('team2')
-        .setDescription('Team 2 name')
-        .setRequired(true))
-    .addNumberOption(option =>
-      option.setName('odds1')
-        .setDescription('Team 1 odds')
-        .setRequired(true))
-    .addNumberOption(option =>
-      option.setName('odds2')
-        .setDescription('Team 2 odds')
-        .setRequired(true)),
+  .setName('addmatch')
+  .setDescription('Add a new match (admin only)')
+  .addStringOption(option =>
+    option.setName('team1')
+      .setDescription('Team 1 name')
+      .setRequired(true))
+  .addStringOption(option =>
+    option.setName('team2')
+      .setDescription('Team 2 name')
+      .setRequired(true))
+  .addNumberOption(option =>
+    option.setName('odds1')
+      .setDescription('Team 1 odds')
+      .setRequired(true))
+  .addNumberOption(option =>
+    option.setName('odds2')
+      .setDescription('Team 2 odds')
+      .setRequired(true))
+  .addNumberOption(option =>
+    option.setName('oddsdraw')
+      .setDescription('Draw odds')
+      .setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('fixtures')
     .setDescription('View all current matches'),
 
   new SlashCommandBuilder()
-    .setName('bet')
-    .setDescription('Place a bet on a match')
-    .addIntegerOption(option =>
-      option.setName('match_id')
-        .setDescription('Match ID')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('team')
-        .setDescription('Team to bet on')
-        .setRequired(true))
-    .addIntegerOption(option =>
-      option.setName('amount')
-        .setDescription('Amount of coins to bet')
-        .setRequired(true)),
+  .setName('addmatch')
+  .setDescription('Add a new match (admin only)')
+  .addStringOption(option =>
+    option.setName('team1')
+      .setDescription('Team 1 name')
+      .setRequired(true))
+  .addStringOption(option =>
+    option.setName('team2')
+      .setDescription('Team 2 name')
+      .setRequired(true))
+  .addNumberOption(option =>
+    option.setName('odds1')
+      .setDescription('Team 1 odds')
+      .setRequired(true))
+  .addNumberOption(option =>
+    option.setName('odds2')
+      .setDescription('Team 2 odds')
+      .setRequired(true))
+  .addNumberOption(option =>
+    option.setName('oddsdraw')
+      .setDescription('Draw odds')
+      .setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('setresult')

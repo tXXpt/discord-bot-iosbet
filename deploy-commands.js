@@ -14,6 +14,10 @@ const commands = [
     .setName('daily')
     .setDescription('Claim your daily coins'),
 
+    new SlashCommandBuilder()
+  .setName('mybets')
+  .setDescription('View your current active bets'),
+
   new SlashCommandBuilder()
     .setName('balance')
     .setDescription('Check your coin balance'),

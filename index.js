@@ -4,7 +4,6 @@ const fs = require('fs');
 
 // --- Config ---
 const token = process.env.BOT_TOKEN;
-const clientId = process.env.CLIENT_ID;
 const ADMIN_IDS = process.env.ADMIN_IDS
   ? process.env.ADMIN_IDS.split(',').map(id => id.trim())
   : [];
@@ -25,11 +24,11 @@ const client = new Client({
 // --- Load or initialize data ---
 let data = { users: {}, matches: [] };
 const DATA_FILE = './data.json';
+
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch (err) {
-    console.error('⚠️ Failed to parse data.json, initializing empty data.');
+  } catch {
     data = { users: {}, matches: [] };
   }
 }
@@ -39,44 +38,12 @@ function saveData() {
 }
 
 function ensureUser(userId) {
-  if (!data.users[userId]) data.users[userId] = { balance: 0, lastDaily: 0 };
-}
-
-// --- Broadcast to all servers ---
-async function broadcastMessage(message) {
-  for (const guild of client.guilds.cache.values()) {
-    const channel = guild.channels.cache.find(
-      ch =>
-        ch.name === ALLOWED_CHANNEL_NAME &&
-        ch.isTextBased() &&
-        ch.permissionsFor(guild.members.me).has('SendMessages')
-    );
-    if (channel) {
-      channel.send(message).catch(console.error);
-    }
+  if (!data.users[userId]) {
+    data.users[userId] = { balance: 0, lastDaily: 0 };
   }
 }
 
-// --- Auto-create allowed channel on join ---
-client.on('guildCreate', async guild => {
-  let channel = guild.channels.cache.find(
-    ch => ch.name === ALLOWED_CHANNEL_NAME && ch.isTextBased()
-  );
-  if (!channel) {
-    try {
-      channel = await guild.channels.create({
-        name: ALLOWED_CHANNEL_NAME,
-        type: 0, // text channel
-        reason: 'Channel for iosbet bot commands',
-      });
-      console.log(`✅ Created channel #${ALLOWED_CHANNEL_NAME} in ${guild.name}`);
-    } catch (err) {
-      console.error(`❌ Failed to create channel in ${guild.name}:`, err);
-    }
-  }
-});
-
-// --- Ready event ---
+// --- Ready ---
 client.once('ready', () => {
   console.log(`✅ Bot is online as ${client.user.tag}`);
 });
@@ -85,12 +52,11 @@ client.once('ready', () => {
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-  // Only allow commands in allowed channel
   if (!interaction.channel || interaction.channel.name !== ALLOWED_CHANNEL_NAME) {
     return interaction.reply({
-      content: `⚠️ This bot only works in the #${ALLOWED_CHANNEL_NAME} channel!`,
+      content: `⚠️ This bot only works in #${ALLOWED_CHANNEL_NAME}`,
       ephemeral: true,
-    }).catch(console.error);
+    });
   }
 
   const userId = interaction.user.id;
@@ -99,174 +65,169 @@ client.on('interactionCreate', async interaction => {
   try {
     switch (interaction.commandName) {
 
+      // --- DAILY ---
       case 'daily': {
         const now = Date.now();
-        if (now - data.users[userId].lastDaily < 24 * 60 * 60 * 1000) {
-          return interaction.reply({
-            content: '⏳ You can claim your daily again in 24 hours.',
-            ephemeral: true,
-          });
+        if (now - data.users[userId].lastDaily < 86400000) {
+          return interaction.reply('⏳ Come back in 24h.');
         }
-        const amount = 100;
-        data.users[userId].balance += amount;
+
+        data.users[userId].balance += 100;
         data.users[userId].lastDaily = now;
         saveData();
-        return interaction.reply(`🎁 You claimed your daily ${amount} coins!`);
+
+        return interaction.reply('🎁 You got 100 coins!');
       }
 
+      // --- BALANCE ---
       case 'balance':
-        return interaction.reply(`💰 Your balance: ${data.users[userId].balance} coins`);
+        return interaction.reply(`💰 Balance: ${data.users[userId].balance}`);
 
+      // --- ADD MATCH ---
       case 'addmatch': {
-  if (!ADMIN_IDS.includes(userId))
-    return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+        if (!ADMIN_IDS.includes(userId))
+          return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
 
-  const team1 = interaction.options.getString('team1');
-  const team2 = interaction.options.getString('team2');
-  const odds1 = interaction.options.getNumber('odds1');
-  const odds2 = interaction.options.getNumber('odds2');
-  const oddsDraw = interaction.options.getNumber('oddsdraw'); // <--- ADD THIS
+        const team1 = interaction.options.getString('team1');
+        const team2 = interaction.options.getString('team2');
+        const odds1 = interaction.options.getNumber('odds1');
+        const odds2 = interaction.options.getNumber('odds2');
+        const oddsDraw = interaction.options.getNumber('oddsdraw');
 
-  const matchId = data.matches.length + 1;
+        const matchId = data.matches.length + 1;
 
-  data.matches.push({
-    id: matchId,
-    team1: team1,
-    team2: team2,
-    odds1: odds1,
-    odds2: odds2,
-    draw: 'Draw',        // optional text
-    oddsDraw: oddsDraw,  // numeric
-    result: null,
-    bets: []
-  });
+        data.matches.push({
+          id: matchId,
+          team1,
+          team2,
+          odds1,
+          odds2,
+          oddsDraw,
+          result: null,
+          bets: []
+        });
 
-  saveData();
-  return interaction.reply(
-    `✅ Match added: ${team1} vs ${team2} (ID: ${matchId}) | Odds: ${odds1}/${oddsDraw}/${odds2}`
-  );
-}
-
-      case 'deletematch': {
-        if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
-        const matchId = interaction.options.getInteger('match_id');
-        const index = data.matches.findIndex(m => m.id === matchId);
-        if (index === -1) return interaction.reply(`❌ Match ID ${matchId} not found.`);
-        data.matches.splice(index, 1);
         saveData();
-        return interaction.reply(`✅ Match ID ${matchId} deleted.`);
+
+        return interaction.reply(`✅ ${team1} vs ${team2} (ID ${matchId})`);
       }
 
-      case 'setresult': {
-  if (!ADMIN_IDS.includes(userId))
-    return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
-
-  const matchId = interaction.options.getInteger('match_id');
-  const winner = interaction.options.getString('winner'); // team1, team2 or Draw
-
-  const matchIndex = data.matches.findIndex(m => m.id === matchId);
-  if (matchIndex === -1)
-    return interaction.reply(`❌ Match ID ${matchId} not found.`);
-
-  const match = data.matches[matchIndex];
-
-  if (match.result)
-    return interaction.reply('⚠️ Result already set.');
-
-  match.result = winner;
-
-  let resultsMessage = `🏁 Match ${match.team1} vs ${match.team2} finished!\n`;
-  resultsMessage += `🏆 Winner: ${winner}\n\n`;
-
-  if (match.bets && match.bets.length > 0) {
-    match.bets.forEach(bet => {
-      let win = false;
-      let odds = 0;
-
-      if (bet.team === match.team1 && winner === match.team1) {
-        win = true;
-        odds = match.odds1;
-      } else if (bet.team === match.team2 && winner === match.team2) {
-        win = true;
-        odds = match.odds2;
-      } else if (bet.team === 'Draw' && winner === 'Draw') {
-        win = true;
-        odds = match.oddsDraw;
-      }
-
-      if (win) {
-        const winnings = Math.floor(bet.amount * odds);
-        ensureUser(bet.userId);
-        data.users[bet.userId].balance += winnings;
-
-        resultsMessage += `✅ <@${bet.userId}> won ${winnings} coins\n`;
-      } else {
-        resultsMessage += `❌ <@${bet.userId}> lost ${bet.amount} coins\n`;
-      }
-    });
-  } else {
-    resultsMessage += 'No bets were placed.\n';
-  }
-
-  // REMOVE match (ends it)
-  data.matches.splice(matchIndex, 1);
-  
-
-  saveData();
-
-  return interaction.reply(resultsMessage);
-}
-
+      // --- FIXTURES ---
       case 'fixtures': {
-        if (interaction.commandName === 'fixtures') {
-  const { EmbedBuilder } = require('discord.js');
+        if (data.matches.length === 0)
+          return interaction.reply('⚠️ No matches.');
 
-  if (data.matches.length === 0) {
-    return interaction.reply('⚠️ No matches available.');
-  }
+        let msg = '📋 **Matches:**\n\n';
 
-  const embed = new EmbedBuilder()
-    .setTitle('📋 Current Matches')
-    .setColor(0x00AE86);
+        data.matches.forEach(m => {
+          msg += `ID ${m.id}: ${m.team1} vs ${m.team2}\n`;
+          msg += `Odds: ${m.odds1} / ${m.oddsDraw} / ${m.odds2}\n\n`;
+        });
 
-  data.matches.forEach(match => {
-    const resultText = match.result ? ` (Winner: ${match.result})` : '';
-    embed.addFields({
-      name: `ID: ${match.id} - ${match.team1} vs ${match.team2}`,
-      value: `Odds: ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})${resultText}`,
-      inline: false
-    });
-  });
-
-  return interaction.reply({ embeds: [embed] });
-}
+        return interaction.reply(msg);
       }
 
+      // --- BET ---
       case 'bet': {
         const matchId = interaction.options.getInteger('match_id');
         const team = interaction.options.getString('team');
         const amount = interaction.options.getInteger('amount');
 
-        if (data.users[userId].balance < amount) return interaction.reply('❌ Not enough coins.');
+        if (data.users[userId].balance < amount)
+          return interaction.reply('❌ Not enough coins.');
 
         const match = data.matches.find(m => m.id === matchId);
         if (!match) return interaction.reply('❌ Match not found.');
-        if (match.result) return interaction.reply('⚠️ Match already finished.');
+
+        if (![match.team1, match.team2, 'Draw'].includes(team)) {
+          return interaction.reply('❌ Invalid team. Use team name or "Draw".');
+        }
 
         data.users[userId].balance -= amount;
-        if (!match.bets) match.bets = [];
+
         match.bets.push({ userId, team, amount });
+
         saveData();
-        return interaction.reply(`✅ You bet ${amount} coins on ${team} for match ID ${matchId}`);
+
+        return interaction.reply(`✅ Bet placed on ${team}`);
       }
 
-      case 'leaderboard': {
-        const leaderboard = Object.entries(data.users)
-          .sort((a, b) => b[1].balance - a[1].balance)
-          .map(([id, u], idx) => `${idx + 1}. <@${id}> - ${u.balance} coins`)
-          .slice(0, 10)
-          .join('\n');
-        return interaction.reply(`🏆 Top users:\n${leaderboard || 'No users yet.'}`);
+      // --- MY BETS ---
+      case 'mybets': {
+        const bets = [];
+
+        data.matches.forEach(match => {
+          match.bets.forEach(bet => {
+            if (bet.userId === userId) {
+              bets.push({
+                match,
+                bet
+              });
+            }
+          });
+        });
+
+        if (bets.length === 0) {
+          return interaction.reply('📭 No active bets.');
+        }
+
+        let msg = '🎯 **Your Bets:**\n\n';
+
+        bets.forEach(({ match, bet }) => {
+          let odds =
+            bet.team === match.team1 ? match.odds1 :
+            bet.team === match.team2 ? match.odds2 :
+            match.oddsDraw;
+
+          let potential = Math.floor(bet.amount * odds);
+
+          msg += `ID ${match.id}: ${match.team1} vs ${match.team2}\n`;
+          msg += `➡️ ${bet.team} | 💰 ${bet.amount} | 🎯 Win: ${potential}\n\n`;
+        });
+
+        return interaction.reply(msg);
+      }
+
+      // --- SET RESULT ---
+      case 'setresult': {
+        if (!ADMIN_IDS.includes(userId))
+          return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+
+        const matchId = interaction.options.getInteger('match_id');
+        const winner = interaction.options.getString('winner');
+
+        const index = data.matches.findIndex(m => m.id === matchId);
+        if (index === -1) return interaction.reply('❌ Match not found.');
+
+        const match = data.matches[index];
+
+        let msg = `🏁 ${match.team1} vs ${match.team2}\nWinner: ${winner}\n\n`;
+
+        match.bets.forEach(bet => {
+          let win = false;
+          let odds = 0;
+
+          if (bet.team === match.team1 && winner === match.team1) {
+            win = true; odds = match.odds1;
+          } else if (bet.team === match.team2 && winner === match.team2) {
+            win = true; odds = match.odds2;
+          } else if (bet.team === 'Draw' && winner === 'Draw') {
+            win = true; odds = match.oddsDraw;
+          }
+
+          if (win) {
+            const winAmount = Math.floor(bet.amount * odds);
+            data.users[bet.userId].balance += winAmount;
+            msg += `✅ <@${bet.userId}> won ${winAmount}\n`;
+          } else {
+            msg += `❌ <@${bet.userId}> lost ${bet.amount}\n`;
+          }
+        });
+
+        data.matches.splice(index, 1);
+        saveData();
+
+        return interaction.reply(msg);
       }
 
       default:
@@ -274,12 +235,10 @@ client.on('interactionCreate', async interaction => {
     }
   } catch (err) {
     console.error(err);
-    if (!interaction.replied) await interaction.reply('❌ Something went wrong.');
+    if (!interaction.replied)
+      await interaction.reply('❌ Error occurred.');
   }
 });
 
 // --- Login ---
-client.login(token).catch(err => {
-  console.error('❌ Failed to login. Check your BOT_TOKEN in .env');
-  console.error(err);
-});
+client.login(token);

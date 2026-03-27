@@ -158,15 +158,63 @@ client.on('interactionCreate', async interaction => {
       }
 
       case 'setresult': {
-        if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
-        const matchId = interaction.options.getInteger('match_id');
-        const winner = interaction.options.getString('winner');
-        const match = data.matches.find(m => m.id === matchId);
-        if (!match) return interaction.reply(`❌ Match ID ${matchId} not found.`);
-        match.result = winner;
-        saveData();
-        return interaction.reply(`✅ Result set for match ${matchId}: winner is ${winner}`);
+  if (!ADMIN_IDS.includes(userId))
+    return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+
+  const matchId = interaction.options.getInteger('match_id');
+  const winner = interaction.options.getString('winner'); // team1, team2 or Draw
+
+  const matchIndex = data.matches.findIndex(m => m.id === matchId);
+  if (matchIndex === -1)
+    return interaction.reply(`❌ Match ID ${matchId} not found.`);
+
+  const match = data.matches[matchIndex];
+
+  if (match.result)
+    return interaction.reply('⚠️ Result already set.');
+
+  match.result = winner;
+
+  let resultsMessage = `🏁 Match ${match.team1} vs ${match.team2} finished!\n`;
+  resultsMessage += `🏆 Winner: ${winner}\n\n`;
+
+  if (match.bets && match.bets.length > 0) {
+    match.bets.forEach(bet => {
+      let win = false;
+      let odds = 0;
+
+      if (bet.team === match.team1 && winner === match.team1) {
+        win = true;
+        odds = match.odds1;
+      } else if (bet.team === match.team2 && winner === match.team2) {
+        win = true;
+        odds = match.odds2;
+      } else if (bet.team === 'Draw' && winner === 'Draw') {
+        win = true;
+        odds = match.oddsDraw;
       }
+
+      if (win) {
+        const winnings = Math.floor(bet.amount * odds);
+        ensureUser(bet.userId);
+        data.users[bet.userId].balance += winnings;
+
+        resultsMessage += `✅ <@${bet.userId}> won ${winnings} coins\n`;
+      } else {
+        resultsMessage += `❌ <@${bet.userId}> lost ${bet.amount} coins\n`;
+      }
+    });
+  } else {
+    resultsMessage += 'No bets were placed.\n';
+  }
+
+  // REMOVE match (ends it)
+  data.matches.splice(matchIndex, 1);
+
+  saveData();
+
+  return interaction.reply(resultsMessage);
+}
 
       case 'fixtures': {
         if (interaction.commandName === 'fixtures') {

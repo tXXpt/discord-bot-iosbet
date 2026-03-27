@@ -47,30 +47,6 @@ const commands = [
     .setDescription('View all current matches'),
 
   new SlashCommandBuilder()
-  .setName('addmatch')
-  .setDescription('Add a new match (admin only)')
-  .addStringOption(option =>
-    option.setName('team1')
-      .setDescription('Team 1 name')
-      .setRequired(true))
-  .addStringOption(option =>
-    option.setName('team2')
-      .setDescription('Team 2 name')
-      .setRequired(true))
-  .addNumberOption(option =>
-    option.setName('odds1')
-      .setDescription('Team 1 odds')
-      .setRequired(true))
-  .addNumberOption(option =>
-    option.setName('odds2')
-      .setDescription('Team 2 odds')
-      .setRequired(true))
-  .addNumberOption(option =>
-    option.setName('oddsdraw')
-      .setDescription('Draw odds')
-      .setRequired(true)),
-
-  new SlashCommandBuilder()
     .setName('setresult')
     .setDescription('Set the result of a match (admin only)')
     .addIntegerOption(option =>

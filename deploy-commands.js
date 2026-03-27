@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
-const token = process.env.BOT_TOKEN;;
+const token = process.env.BOT_TOKEN;
 const clientId = process.env.CLIENT_ID;
 
 if (!clientId || !token) {
@@ -19,28 +19,28 @@ const commands = [
     .setDescription('Check your coin balance'),
 
   new SlashCommandBuilder()
-  .setName('addmatch')
-  .setDescription('Add a new match (admin only)')
-  .addStringOption(option =>
-    option.setName('team1')
-      .setDescription('Team 1 name')
-      .setRequired(true))
-  .addStringOption(option =>
-    option.setName('team2')
-      .setDescription('Team 2 name')
-      .setRequired(true))
-  .addNumberOption(option =>
-    option.setName('odds1')
-      .setDescription('Team 1 odds')
-      .setRequired(true))
-  .addNumberOption(option =>
-    option.setName('odds2')
-      .setDescription('Team 2 odds')
-      .setRequired(true))
-  .addNumberOption(option =>
-    option.setName('oddsdraw')
-      .setDescription('Draw odds')
-      .setRequired(true)),
+    .setName('addmatch')
+    .setDescription('Add a new match (admin only)')
+    .addStringOption(option =>
+      option.setName('team1')
+        .setDescription('Team 1 name')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('team2')
+        .setDescription('Team 2 name')
+        .setRequired(true))
+    .addNumberOption(option =>
+      option.setName('odds1')
+        .setDescription('Team 1 odds')
+        .setRequired(true))
+    .addNumberOption(option =>
+      option.setName('odds2')
+        .setDescription('Team 2 odds')
+        .setRequired(true))
+    .addNumberOption(option =>
+      option.setName('oddsdraw')
+        .setDescription('Draw odds')
+        .setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('fixtures')
@@ -68,6 +68,23 @@ const commands = [
     .addIntegerOption(option =>
       option.setName('match_id')
         .setDescription('ID of the match to delete')
+        .setRequired(true)),
+
+  // --- FIXED bet command ---
+  new SlashCommandBuilder()
+    .setName('bet')
+    .setDescription('Place a bet on a match')
+    .addIntegerOption(option =>
+      option.setName('match_id')
+        .setDescription('ID of the match you want to bet on')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('team')
+        .setDescription('Team name or Draw')
+        .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('amount')
+        .setDescription('Amount of coins to bet')
         .setRequired(true))
 ].map(command => command.toJSON());
 

@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 
+// --- Config ---
 const token = process.env.BOT_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const ADMIN_IDS = process.env.ADMIN_IDS
@@ -10,6 +11,13 @@ const ADMIN_IDS = process.env.ADMIN_IDS
 
 const ALLOWED_CHANNEL_NAME = 'iosbet';
 
+// --- Check token ---
+if (!token || token.length < 50) {
+  console.error('❌ Invalid or missing BOT_TOKEN in .env');
+  process.exit(1);
+}
+
+// --- Initialize client ---
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
@@ -17,7 +25,14 @@ const client = new Client({
 // --- Load or initialize data ---
 let data = { users: {}, matches: [] };
 const DATA_FILE = './data.json';
-if (fs.existsSync(DATA_FILE)) data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+if (fs.existsSync(DATA_FILE)) {
+  try {
+    data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } catch (err) {
+    console.error('⚠️ Failed to parse data.json, initializing empty data.');
+    data = { users: {}, matches: [] };
+  }
+}
 
 function saveData() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
@@ -54,19 +69,19 @@ client.on('guildCreate', async guild => {
         type: 0, // text channel
         reason: 'Channel for iosbet bot commands',
       });
-      console.log(`Created channel #${ALLOWED_CHANNEL_NAME} in ${guild.name}`);
+      console.log(`✅ Created channel #${ALLOWED_CHANNEL_NAME} in ${guild.name}`);
     } catch (err) {
-      console.error(`Failed to create channel in ${guild.name}:`, err);
+      console.error(`❌ Failed to create channel in ${guild.name}:`, err);
     }
   }
 });
 
-// --- Ready ---
+// --- Ready event ---
 client.once('ready', () => {
   console.log(`✅ Bot is online as ${client.user.tag}`);
 });
 
-// --- Commands ---
+// --- Command handler ---
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -81,11 +96,14 @@ client.on('interactionCreate', async interaction => {
   const userId = interaction.user.id;
   ensureUser(userId);
 
-  // --- /daily ---
+  // --- /daily command ---
   if (interaction.commandName === 'daily') {
     const now = Date.now();
     if (now - data.users[userId].lastDaily < 24 * 60 * 60 * 1000) {
-      return interaction.reply({ content: '⏳ You can claim your daily again in 24 hours.', ephemeral: true }).catch(console.error);
+      return interaction.reply({
+        content: '⏳ You can claim your daily again in 24 hours.',
+        ephemeral: true,
+      }).catch(console.error);
     }
     const amount = 100;
     data.users[userId].balance += amount;
@@ -94,18 +112,22 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply(`🎁 You claimed your daily ${amount} coins!`).catch(console.error);
   }
 
-  // --- /balance ---
+  // --- /balance command ---
   if (interaction.commandName === 'balance') {
     return interaction.reply(`💰 Your balance: ${data.users[userId].balance} coins`).catch(console.error);
   }
 
-  // --- Admin commands ---
+  // --- Admin-only commands ---
   const adminOnly = ['addmatch', 'deletematch', 'setresult'];
   if (adminOnly.includes(interaction.commandName) && !ADMIN_IDS.includes(userId)) {
     return interaction.reply({ content: '❌ Not authorized.', ephemeral: true }).catch(console.error);
   }
 
-  // Keep your existing addmatch, deletematch, setresult, fixtures, bet, leaderboard code here
+  // TODO: implement addmatch, deletematch, setresult, fixtures, bet, leaderboard commands
 });
 
-client.login(token);
+// --- Login ---
+client.login(token).catch(err => {
+  console.error('❌ Failed to login. Check your BOT_TOKEN in .env');
+  console.error(err);
+});

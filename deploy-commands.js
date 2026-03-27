@@ -1,6 +1,6 @@
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
-const token = process.env.BOT_TOKEN;
+const git add. = process.env.BOT_TOKEN;
 const clientId = process.env.CLIENT_ID;
 
 if (!clientId || !token) {

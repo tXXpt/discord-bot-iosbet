@@ -1,0 +1,12 @@
+# Node dependencies
+node_modules/
+
+# Local data
+data.json
+
+# Secrets
+config.json
+.env
+
+# Logs
+*.log

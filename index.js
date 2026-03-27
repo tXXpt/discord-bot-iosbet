@@ -118,25 +118,34 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply(`💰 Your balance: ${data.users[userId].balance} coins`);
 
       case 'addmatch': {
-        if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
-        const team1 = interaction.options.getString('team1');
-        const team2 = interaction.options.getString('team2');
-        const odds1 = interaction.options.getNumber('odds1');
-        const odds2 = interaction.options.getNumber('odds2');
-        const matchId = data.matches.length + 1;
-        data.matches.push({
-  id: data.matches.length + 1,
-  team1: team1,
-  team2: team2,
-  odds1: odds1,
-  odds2: odds2,
-  draw: 'Draw',        // optional text
-  oddsDraw: oddsDraw,  // numeric
-  result: null
-});
-        saveData();
-        return interaction.reply(`✅ Match added: ${team1} vs ${team2} (ID: ${matchId})`);
-      }
+  if (!ADMIN_IDS.includes(userId))
+    return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+
+  const team1 = interaction.options.getString('team1');
+  const team2 = interaction.options.getString('team2');
+  const odds1 = interaction.options.getNumber('odds1');
+  const odds2 = interaction.options.getNumber('odds2');
+  const oddsDraw = interaction.options.getNumber('oddsdraw'); // <--- ADD THIS
+
+  const matchId = data.matches.length + 1;
+
+  data.matches.push({
+    id: matchId,
+    team1: team1,
+    team2: team2,
+    odds1: odds1,
+    odds2: odds2,
+    draw: 'Draw',        // optional text
+    oddsDraw: oddsDraw,  // numeric
+    result: null,
+    bets: []
+  });
+
+  saveData();
+  return interaction.reply(
+    `✅ Match added: ${team1} vs ${team2} (ID: ${matchId}) | Odds: ${odds1}/${oddsDraw}/${odds2}`
+  );
+}
 
       case 'deletematch': {
         if (!ADMIN_IDS.includes(userId)) return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });

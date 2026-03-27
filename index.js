@@ -124,7 +124,16 @@ client.on('interactionCreate', async interaction => {
         const odds1 = interaction.options.getNumber('odds1');
         const odds2 = interaction.options.getNumber('odds2');
         const matchId = data.matches.length + 1;
-        data.matches.push({ id: matchId, team1, team2, odds1, odds2, result: null });
+        data.matches.push({
+  id: data.matches.length + 1,
+  team1: team1,
+  team2: team2,
+  odds1: odds1,
+  odds2: odds2,
+  draw: 'Draw',        // optional text
+  oddsDraw: oddsDraw,  // numeric
+  result: null
+});
         saveData();
         return interaction.reply(`✅ Match added: ${team1} vs ${team2} (ID: ${matchId})`);
       }
@@ -166,7 +175,7 @@ client.on('interactionCreate', async interaction => {
     const resultText = match.result ? ` (Winner: ${match.result})` : '';
     embed.addFields({
       name: `ID: ${match.id} - ${match.team1} vs ${match.team2}`,
-      value: `Odds: ${match.team1} (${match.odds1}) vs ${match.team2} (${match.odds2})${resultText}`,
+      value: `Odds: ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})${resultText}`,
       inline: false
     });
   });

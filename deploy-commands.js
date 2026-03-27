@@ -1,8 +1,10 @@
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
-const { token, clientId } = require('./config.json');
 
-if (!clientId) {
-  console.error("❌ clientId is missing in config.json");
+const token = process.env.BOT_TOKEN;
+const clientId = process.env.CLIENT_ID;
+
+if (!clientId || !token) {
+  console.error("❌ BOT_TOKEN or CLIENT_ID is missing in environment variables");
   process.exit(1);
 }
 

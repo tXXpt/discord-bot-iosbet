@@ -185,31 +185,21 @@
         }
 
         case 'leaderboard': {
-    const sorted = Object.entries(data.users)
-      .sort((a, b) => b[1].balance - a[1].balance)
-      .slice(0, 10);
+  const sorted = Object.entries(data.users)
+    .sort((a, b) => b[1].balance - a[1].balance)
+    .slice(0, 10);
 
-    if (sorted.length === 0)
-      return interaction.editReply('📭 No users yet.');
+  if (sorted.length === 0)
+    return interaction.editReply({ content: '📭 No users yet.', ephemeral: true });
 
-    let msg = '🏆 **Leaderboard**\n\n';
+  let msg = '🏆 **Leaderboard**\n\n';
 
-    // Fetch usernames asynchronously
-    for (let i = 0; i < sorted.length; i++) {
-      const [id, user] = sorted[i];
-      let username = 'Unknown';
-      try {
-        const userObj = await client.users.fetch(id);
-        username = userObj.username;
-      } catch (err) {
-        console.error(`Failed to fetch username for ID ${id}:`, err);
-      }
+  sorted.forEach(([id, user], i) => {
+    msg += `${i + 1}. <@${id}> — 💰 ${user.balance}\n`;
+  });
 
-      msg += `${i + 1}. ${username} — 💰 ${user.balance}\n`;
-    }
-
-    return interaction.editReply(msg);
-  }
+  return interaction.editReply({ content: msg, ephemeral: true });
+}
 
         case 'mybets': {
           const bets = [];

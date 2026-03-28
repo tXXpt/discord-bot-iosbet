@@ -51,27 +51,8 @@ const commands = [
     .setDescription('View matches'),
 
   new SlashCommandBuilder()
-    .setName('bets')
-    .setDescription('Open interactive betting menu'),
-
-  new SlashCommandBuilder()
     .setName('bet')
-    .setDescription('Place a manual bet')
-    .addIntegerOption(o =>
-      o.setName('match_id')
-        .setDescription('ID of the match')
-        .setRequired(true)
-    )
-    .addStringOption(o =>
-      o.setName('team')
-        .setDescription('Team name or Draw')
-        .setRequired(true)
-    )
-    .addIntegerOption(o =>
-      o.setName('amount')
-        .setDescription('Amount of coins to bet')
-        .setRequired(true)
-    ),
+    .setDescription('Open the interactive betting menu'),
 
   new SlashCommandBuilder()
     .setName('setresult')

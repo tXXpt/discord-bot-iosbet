@@ -372,56 +372,6 @@ client.on('interactionCreate', async interaction => {
   return;
 }
 
-      case 'bet': {
-        await interaction.deferReply({ ephemeral: true });
-
-        const matchId = interaction.options.getInteger('match_id');
-        const teamInput = interaction.options.getString('team');
-        const amount = interaction.options.getInteger('amount');
-
-        if (!Number.isInteger(amount) || amount <= 0) {
-          return interaction.editReply('❌ Amount must be greater than 0.');
-        }
-
-        if (data.users[userId].balance < amount) {
-          return interaction.editReply('❌ Not enough coins.');
-        }
-
-        const match = data.matches.find(m => m.id === matchId);
-        if (!match) {
-          return interaction.editReply('❌ Match not found.');
-        }
-
-        let selectedTeam = null;
-
-        if (teamInput.toLowerCase() === 'draw') {
-          selectedTeam = 'Draw';
-        } else if (teamInput === match.team1) {
-          selectedTeam = match.team1;
-        } else if (teamInput === match.team2) {
-          selectedTeam = match.team2;
-        }
-
-        if (!selectedTeam) {
-          return interaction.editReply('❌ Invalid team.');
-        }
-
-        if (!match.bets) match.bets = [];
-
-        data.users[userId].balance -= amount;
-        match.bets.push({
-          userId,
-          team: selectedTeam,
-          amount,
-        });
-
-        saveData();
-
-        return interaction.editReply(
-          `✅ ${interaction.user.username} bet ${amount} coins on ${selectedTeam} (ID ${match.id})`
-        );
-      }
-
       case 'leaderboard': {
         await interaction.deferReply({ ephemeral: true });
 

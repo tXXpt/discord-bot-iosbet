@@ -328,50 +328,49 @@ client.on('interactionCreate', async interaction => {
         return interaction.editReply({ embeds: [embed] });
       }
 
-      case 'bets': {
-        await interaction.deferReply({ ephemeral: true });
+      case 'bet': {
+  await interaction.deferReply({ ephemeral: true });
 
-        if (data.matches.length === 0) {
-          return interaction.editReply('⚠️ No matches available.');
-        }
+  if (data.matches.length === 0) {
+    return interaction.editReply('⚠️ No matches available.');
+  }
 
-        await interaction.editReply('🎯 **Choose a team below to place your bet.**');
+  await interaction.editReply('🎯 **Choose a team below to place your bet.**');
 
-        for (const match of data.matches) {
-          const embed = new EmbedBuilder()
-            .setTitle(`Match ID ${match.id}`)
-            .setColor(0x00AE86)
-            .addFields(
-              {
-                name: `${match.team1} vs ${match.team2}`,
-                value: `Pick a team below.\n\n**Odds:** ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`,
-              }
-            );
+  for (const match of data.matches) {
+    const embed = new EmbedBuilder()
+      .setTitle(`Match ID ${match.id}`)
+      .setColor(0x00AE86)
+      .addFields({
+        name: `${match.team1} vs ${match.team2}`,
+        value: `**Odds:** ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`,
+        inline: false,
+      });
 
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`betpick:${match.id}:team1`)
-              .setLabel(`${match.team1} (${match.odds1})`)
-              .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-              .setCustomId(`betpick:${match.id}:draw`)
-              .setLabel(`Draw (${match.oddsDraw})`)
-              .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-              .setCustomId(`betpick:${match.id}:team2`)
-              .setLabel(`${match.team2} (${match.odds2})`)
-              .setStyle(ButtonStyle.Primary)
-          );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`betpick:${match.id}:team1`)
+        .setLabel(`${match.team1} (${match.odds1})`)
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`betpick:${match.id}:draw`)
+        .setLabel(`Draw (${match.oddsDraw})`)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`betpick:${match.id}:team2`)
+        .setLabel(`${match.team2} (${match.odds2})`)
+        .setStyle(ButtonStyle.Primary)
+    );
 
-          await interaction.followUp({
-            embeds: [embed],
-            components: [row],
-            ephemeral: true,
-          });
-        }
+    await interaction.followUp({
+      embeds: [embed],
+      components: [row],
+      ephemeral: true,
+    });
+  }
 
-        return;
-      }
+  return;
+}
 
       case 'bet': {
         await interaction.deferReply({ ephemeral: true });

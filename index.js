@@ -23,9 +23,12 @@
 
   // --- Data ---
   let data = { users: {}, matches: [] };
-  const DATA_FILE = './data.json';
+  const DATA_FILE = '/data/data.json';
 
-  if (fs.existsSync(DATA_FILE)) {
+  // ✅ Create file if it doesn't exist (IMPORTANT)
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  } else {
     try {
       data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     } catch {

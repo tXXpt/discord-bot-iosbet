@@ -195,7 +195,7 @@ client.on('interactionCreate', async interaction => {
         let msg = '🏆 **Leaderboard**\n\n';
 
         sorted.forEach(([id, user], i) => {
-          msg += `${i + 1}. <@${id}> — 💰 ${user.balance}\n`;
+          msg += `${i + 1}. <@!${id}> — 💰 ${user.balance}\n`.replace(/<@!?(\d+)>/g, '@$1');
         });
 
         return interaction.editReply(msg);

@@ -117,6 +117,20 @@
           return interaction.editReply(`✅ ${team1} vs ${team2} (ID ${matchId})`);
         }
 
+                case 'deletematch': {
+          if (!ADMIN_IDS.includes(userId))
+            return interaction.editReply('❌ Not authorized.');
+
+          const matchId = interaction.options.getInteger('match_id');
+          const index = data.matches.findIndex(m => m.id === matchId);
+          if (index === -1) return interaction.editReply('❌ Match not found.');
+
+          const removed = data.matches.splice(index, 1)[0];
+          saveData();
+
+          return interaction.editReply(`🗑️ Match deleted: ${removed.team1} vs ${removed.team2} (ID ${removed.id})`);
+}
+
         case 'fixtures': {
           if (data.matches.length === 0) {
             return interaction.editReply('⚠️ No matches available.');

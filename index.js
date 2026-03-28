@@ -1,5 +1,5 @@
   require('dotenv').config();
-  const { Client, GatewayIntentBits } = require('discord.js');
+  const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
   const fs = require('fs');
 
   // --- Config ---
@@ -18,10 +18,10 @@
 
   // --- Initialize client ---
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+    intents: [GatewayIntentBits.Guilds],
   });
 
-  // --- Load or initialize data ---
+  // --- Data ---
   let data = { users: {}, matches: [] };
   const DATA_FILE = './data.json';
 
@@ -48,13 +48,13 @@
     console.log(`✅ Bot is online as ${client.user.tag}`);
   });
 
-  // --- Command handler ---
+  // --- Commands ---
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     if (!interaction.channel || interaction.channel.name !== ALLOWED_CHANNEL_NAME) {
       return interaction.reply({
-        content: `⚠️ This bot only works in #${ALLOWED_CHANNEL_NAME}`,
+        content: `⚠️ Use commands in #${ALLOWED_CHANNEL_NAME}`,
         ephemeral: true,
       });
     }
@@ -63,30 +63,30 @@
     ensureUser(userId);
 
     try {
+      // ✅ FIX: prevent "Unknown interaction"
+      await interaction.deferReply();
+
       switch (interaction.commandName) {
 
-        // --- DAILY ---
         case 'daily': {
           const now = Date.now();
           if (now - data.users[userId].lastDaily < 86400000) {
-            return interaction.reply('⏳ Come back in 24h.');
+            return interaction.editReply('⏳ Come back in 24h.');
           }
 
           data.users[userId].balance += 100;
           data.users[userId].lastDaily = now;
           saveData();
 
-          return interaction.reply('🎁 You got 100 coins!');
+          return interaction.editReply('🎁 You got 100 coins!');
         }
 
-        // --- BALANCE ---
         case 'balance':
-          return interaction.reply(`💰 Balance: ${data.users[userId].balance}`);
+          return interaction.editReply(`💰 Balance: ${data.users[userId].balance}`);
 
-        // --- ADD MATCH ---
         case 'addmatch': {
           if (!ADMIN_IDS.includes(userId))
-            return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+            return interaction.editReply('❌ Not authorized.');
 
           const team1 = interaction.options.getString('team1');
           const team2 = interaction.options.getString('team2');
@@ -109,91 +109,86 @@
 
           saveData();
 
-          return interaction.reply(`✅ ${team1} vs ${team2} (ID ${matchId})`);
+          return interaction.editReply(`✅ ${team1} vs ${team2} (ID ${matchId})`);
         }
 
-        // --- FIXTURES ---
         case 'fixtures': {
-    const { EmbedBuilder } = require('discord.js');
+          if (data.matches.length === 0) {
+            return interaction.editReply('⚠️ No matches available.');
+          }
 
-    if (data.matches.length === 0) {
-      return interaction.reply('⚠️ No matches available.');
-    }
+          const embed = new EmbedBuilder()
+            .setTitle('📋 Current Matches')
+            .setColor(0x00AE86);
 
-    const embeds = data.matches.map(match => {
-      return new EmbedBuilder()
-        .setTitle('📋 Current Matches')
-        .setColor(0x00AE86)
-        .setDescription(
-          `ID: ${match.id} - ${match.team1} vs ${match.team2}\n` +
-          `Odds: ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`
-        );
-    });
+          data.matches.forEach(match => {
+            embed.addFields({
+              name: `ID ${match.id}: ${match.team1} vs ${match.team2}`,
+              value: `Odds: ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`,
+              inline: false
+            });
+          });
 
-    return interaction.reply({ embeds });
-  }
+          return interaction.editReply({ embeds: [embed] });
+        }
 
-        // --- BET ---
         case 'bet': {
           const matchId = interaction.options.getInteger('match_id');
           const team = interaction.options.getString('team');
           const amount = interaction.options.getInteger('amount');
 
           if (data.users[userId].balance < amount)
-            return interaction.reply('❌ Not enough coins.');
+            return interaction.editReply('❌ Not enough coins.');
 
           const match = data.matches.find(m => m.id === matchId);
-          if (!match) return interaction.reply('❌ Match not found.');
+          if (!match) return interaction.editReply('❌ Match not found.');
 
           if (![match.team1, match.team2, 'Draw'].includes(team)) {
-            return interaction.reply('❌ Invalid team. Use team name or "Draw".');
+            return interaction.editReply('❌ Invalid team.');
           }
 
-          data.users[userId].balance -= amount;
+          if (!match.bets) match.bets = [];
 
+          data.users[userId].balance -= amount;
           match.bets.push({ userId, team, amount });
 
           saveData();
 
-          return interaction.reply(`✅ Bet placed on ${team}`);
+          return interaction.editReply(`✅ Bet placed on ${team}`);
         }
 
-              // --- LEADERBOARD ---
-          case 'leaderboard': {
+        case 'leaderboard': {
           const sorted = Object.entries(data.users)
             .sort((a, b) => b[1].balance - a[1].balance)
             .slice(0, 10);
 
-          if (sorted.length === 0) {
-            return interaction.reply('📭 No users yet.');
-          }
+          if (sorted.length === 0)
+            return interaction.editReply('📭 No users yet.');
 
           let msg = '🏆 **Leaderboard**\n\n';
 
-          sorted.forEach(([id, user], index) => {
-            msg += `${index + 1}. <@${id}> — 💰 ${user.balance} coins\n`;
+          sorted.forEach(([id, user], i) => {
+            msg += `${i + 1}. <@${id}> — 💰 ${user.balance}\n`;
           });
 
-    return interaction.reply(msg);
-  }
+          return interaction.editReply(msg);
+        }
 
-        // --- MY BETS ---
         case 'mybets': {
           const bets = [];
 
           data.matches.forEach(match => {
+            if (!match.bets) return;
+
             match.bets.forEach(bet => {
               if (bet.userId === userId) {
-                bets.push({
-                  match,
-                  bet
-                });
+                bets.push({ match, bet });
               }
             });
           });
 
           if (bets.length === 0) {
-            return interaction.reply('📭 No active bets.');
+            return interaction.editReply('📭 No active bets.');
           }
 
           let msg = '🎯 **Your Bets:**\n\n';
@@ -210,25 +205,24 @@
             msg += `➡️ ${bet.team} | 💰 ${bet.amount} | 🎯 Win: ${potential}\n\n`;
           });
 
-          return interaction.reply(msg);
+          return interaction.editReply(msg);
         }
 
-        // --- SET RESULT ---
         case 'setresult': {
           if (!ADMIN_IDS.includes(userId))
-            return interaction.reply({ content: '❌ Not authorized.', ephemeral: true });
+            return interaction.editReply('❌ Not authorized.');
 
           const matchId = interaction.options.getInteger('match_id');
           const winner = interaction.options.getString('winner');
 
           const index = data.matches.findIndex(m => m.id === matchId);
-          if (index === -1) return interaction.reply('❌ Match not found.');
+          if (index === -1) return interaction.editReply('❌ Match not found.');
 
           const match = data.matches[index];
 
           let msg = `🏁 ${match.team1} vs ${match.team2}\nWinner: ${winner}\n\n`;
 
-          match.bets.forEach(bet => {
+          (match.bets || []).forEach(bet => {
             let win = false;
             let odds = 0;
 
@@ -242,6 +236,7 @@
 
             if (win) {
               const winAmount = Math.floor(bet.amount * odds);
+              ensureUser(bet.userId);
               data.users[bet.userId].balance += winAmount;
               msg += `✅ <@${bet.userId}> won ${winAmount}\n`;
             } else {
@@ -252,18 +247,18 @@
           data.matches.splice(index, 1);
           saveData();
 
-          return interaction.reply(msg);
+          return interaction.editReply(msg);
         }
 
         default:
-          return interaction.reply('❌ Unknown command.');
+          return interaction.editReply('❌ Unknown command.');
       }
+
     } catch (err) {
       console.error(err);
       if (!interaction.replied)
-        await interaction.reply('❌ Error occurred.');
+        await interaction.editReply('❌ Error occurred.');
     }
   });
 
-  // --- Login ---
   client.login(token);

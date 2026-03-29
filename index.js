@@ -193,22 +193,27 @@ client.on('interactionCreate', async interaction => {
 
         if (!match.bets) match.bets = [];
 
-        data.users[userId].balance -= amount;
-        match.bets.push({
-          userId,
-          team: selectedTeam,
-          amount,
-        });
+data.users[userId].balance -= amount;
+match.bets.push({
+  userId,
+  team: selectedTeam,
+  amount,
+});
 
-        saveData();
+saveData();
 
-        return interaction.reply({
-          content: `✅ ${interaction.user.username} bet ${amount} coins on ${selectedTeam} (ID ${match.id})`,
-          ephemeral: true,
-        });
-      }
+// Private confirmation to bettor
+await interaction.reply({
+  content: `✅ You bet ${amount} coins on ${selectedTeam} (ID ${match.id})`,
+  ephemeral: true,
+});
 
-      return;
+// Public announcement in channel
+await interaction.channel.send(
+  `📢 **${interaction.user.username}** bet **${amount}** coins on **${selectedTeam}** in **${match.team1} vs ${match.team2}** (ID ${match.id})`
+);
+
+return;
     }
 
     // =========================

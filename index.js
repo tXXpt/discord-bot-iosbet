@@ -89,6 +89,28 @@ function getOddsFromPick(match, pick) {
   return null;
 }
 
+async function announceNewMatch(clientInstance, embed) {
+  for (const guild of clientInstance.guilds.cache.values()) {
+    try {
+      const channels = await guild.channels.fetch();
+
+      const channel = channels.find(
+        c =>
+          c &&
+          c.name === ALLOWED_CHANNEL_NAME &&
+          c.isTextBased() &&
+          c.viewable
+      );
+
+      if (!channel) continue;
+
+      await channel.send({ embeds: [embed] });
+    } catch (err) {
+      console.error(`❌ Failed in guild ${guild.id}:`, err.message);
+    }
+  }
+}
+
 // --- Ready ---
 client.once('ready', () => {
   console.log(`✅ Bot is online as ${client.user.tag}`);
@@ -293,69 +315,63 @@ client.on('interactionCreate', async interaction => {
       }
 
       case 'addmatch': {
-  await interaction.deferReply();
+        await interaction.deferReply();
 
-  if (!ADMIN_IDS.includes(userId)) {
-    return interaction.editReply('❌ Not authorized.');
-  }
+        if (!ADMIN_IDS.includes(userId)) {
+          return interaction.editReply('❌ Not authorized.');
+        }
 
-  const team1 = interaction.options.getString('team1');
-  const team2 = interaction.options.getString('team2');
-  const odds1 = interaction.options.getNumber('odds1');
-  const odds2 = interaction.options.getNumber('odds2');
-  const oddsDraw = interaction.options.getNumber('oddsdraw');
+        const team1 = interaction.options.getString('team1');
+        const team2 = interaction.options.getString('team2');
+        const odds1 = interaction.options.getNumber('odds1');
+        const odds2 = interaction.options.getNumber('odds2');
+        const oddsDraw = interaction.options.getNumber('oddsdraw');
 
-  const matchId = getNextMatchId();
+        const matchId = getNextMatchId();
 
-  const newMatch = {
-    id: matchId,
-    team1,
-    team2,
-    odds1,
-    odds2,
-    oddsDraw,
-    result: null,
-    bets: [],
-    isOpen: true,
-  };
+        data.matches.push({
+          id: matchId,
+          team1,
+          team2,
+          odds1,
+          odds2,
+          oddsDraw,
+          result: null,
+          bets: [],
+          isOpen: true,
+        });
 
-  data.matches.push(newMatch);
-  saveData();
+        saveData();
 
-  // ✅ Reply to admin
-  await interaction.editReply(`✅ Match added: ${team1} vs ${team2} (ID ${matchId})`);
+        await interaction.editReply(`✅ Match added: ${team1} vs ${team2} (ID ${matchId})`);
 
-  // ✅ PUBLIC ANNOUNCEMENT
-  const embed = new EmbedBuilder()
-    .setTitle('📢 New Match Available')
-    .setColor(0x00AE86)
-    .addFields(
-      {
-        name: 'Match',
-        value: `${team1} vs ${team2}`,
-        inline: false,
-      },
-      {
-        name: 'Odds',
-        value: `${team1} (${odds1}) | Draw (${oddsDraw}) | ${team2} (${odds2})`,
-        inline: false,
-      },
-      {
-        name: 'Match ID',
-        value: `${matchId}`,
-        inline: true,
-      },
-      {
-        name: 'Status',
-        value: '🟢 Open for betting',
-        inline: true,
+        const embed = new EmbedBuilder()
+          .setTitle('📢 New Match Available')
+          .setColor(0x00AE86)
+          .addFields(
+            {
+              name: '⚽ Match',
+              value: `${team1} vs ${team2}`,
+            },
+            {
+              name: '📊 Odds',
+              value: `${team1} (${odds1}) | Draw (${oddsDraw}) | ${team2} (${odds2})`,
+            },
+            {
+              name: '🆔 Match ID',
+              value: `${matchId}`,
+              inline: true,
+            },
+            {
+              name: '📢 Status',
+              value: '🟢 Open',
+              inline: true,
+            }
+          );
+
+        await announceNewMatch(client, embed);
+        return;
       }
-    );
-
-  await interaction.channel.send({ embeds: [embed] });
-
-  return;
-}
 
       case 'closebets': {
         await interaction.deferReply();

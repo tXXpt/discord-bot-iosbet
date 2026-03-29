@@ -46,6 +46,20 @@ if (!fs.existsSync(DATA_FILE)) {
   }
 }
 
+function normalizeMatches() {
+  for (const match of data.matches) {
+    if (typeof match.isOpen !== 'boolean') {
+      match.isOpen = true;
+    }
+    if (!Array.isArray(match.bets)) {
+      match.bets = [];
+    }
+  }
+}
+
+normalizeMatches();
+fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+
 function saveData() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
@@ -108,6 +122,13 @@ client.on('interactionCreate', async interaction => {
           });
         }
 
+        if (!match.isOpen) {
+          return interaction.reply({
+            content: '🔒 Betting is closed for this match.',
+            ephemeral: true,
+          });
+        }
+
         const selectedTeam = getTeamFromPick(match, pick);
         const selectedOdds = getOddsFromPick(match, pick);
 
@@ -162,6 +183,13 @@ client.on('interactionCreate', async interaction => {
         if (!match) {
           return interaction.reply({
             content: '❌ Match not found or no longer available.',
+            ephemeral: true,
+          });
+        }
+
+        if (!match.isOpen) {
+          return interaction.reply({
+            content: '🔒 Betting is closed for this match.',
             ephemeral: true,
           });
         }
@@ -288,11 +316,60 @@ client.on('interactionCreate', async interaction => {
           oddsDraw,
           result: null,
           bets: [],
+          isOpen: true,
         });
 
         saveData();
 
         return interaction.editReply(`✅ ${team1} vs ${team2} (ID ${matchId})`);
+      }
+
+      case 'closebets': {
+        await interaction.deferReply();
+
+        if (!ADMIN_IDS.includes(userId)) {
+          return interaction.editReply('❌ Not authorized.');
+        }
+
+        const matchId = interaction.options.getInteger('match_id');
+        const match = data.matches.find(m => m.id === matchId);
+
+        if (!match) {
+          return interaction.editReply('❌ Match not found.');
+        }
+
+        if (!match.isOpen) {
+          return interaction.editReply(`⚠️ Betting is already closed for ${match.team1} vs ${match.team2} (ID ${match.id}).`);
+        }
+
+        match.isOpen = false;
+        saveData();
+
+        return interaction.editReply(`🔒 Betting closed for ${match.team1} vs ${match.team2} (ID ${match.id}).`);
+      }
+
+      case 'openbets': {
+        await interaction.deferReply();
+
+        if (!ADMIN_IDS.includes(userId)) {
+          return interaction.editReply('❌ Not authorized.');
+        }
+
+        const matchId = interaction.options.getInteger('match_id');
+        const match = data.matches.find(m => m.id === matchId);
+
+        if (!match) {
+          return interaction.editReply('❌ Match not found.');
+        }
+
+        if (match.isOpen) {
+          return interaction.editReply(`⚠️ Betting is already open for ${match.team1} vs ${match.team2} (ID ${match.id}).`);
+        }
+
+        match.isOpen = true;
+        saveData();
+
+        return interaction.editReply(`🔓 Betting reopened for ${match.team1} vs ${match.team2} (ID ${match.id}).`);
       }
 
       case 'deletematch': {
@@ -337,7 +414,7 @@ client.on('interactionCreate', async interaction => {
         for (const match of data.matches) {
           embed.addFields({
             name: `ID ${match.id}: ${match.team1} vs ${match.team2}`,
-            value: `Odds: ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`,
+            value: `Odds: ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})\nStatus: ${match.isOpen ? '🟢 Open' : '🔴 Closed'}`,
             inline: false,
           });
         }
@@ -348,13 +425,15 @@ client.on('interactionCreate', async interaction => {
       case 'bet': {
         await interaction.deferReply({ ephemeral: true });
 
-        if (data.matches.length === 0) {
-          return interaction.editReply('⚠️ No matches available.');
+        const openMatches = data.matches.filter(m => m.isOpen);
+
+        if (openMatches.length === 0) {
+          return interaction.editReply('⚠️ No matches currently open for betting.');
         }
 
         await interaction.editReply('🎯 **Choose a team below to place your bet.**');
 
-        for (const match of data.matches) {
+        for (const match of openMatches) {
           const embed = new EmbedBuilder()
             .setTitle(`Match ID ${match.id}`)
             .setColor(0x00AE86)

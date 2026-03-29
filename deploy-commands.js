@@ -55,6 +55,24 @@ const commands = [
     .setDescription('Open the interactive betting menu'),
 
   new SlashCommandBuilder()
+    .setName('closebets')
+    .setDescription('Close betting for a match')
+    .addIntegerOption(o =>
+      o.setName('match_id')
+        .setDescription('ID of the match')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('openbets')
+    .setDescription('Reopen betting for a match')
+    .addIntegerOption(o =>
+      o.setName('match_id')
+        .setDescription('ID of the match')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
     .setName('setresult')
     .setDescription('Set match result')
     .addIntegerOption(o =>

@@ -293,36 +293,69 @@ client.on('interactionCreate', async interaction => {
       }
 
       case 'addmatch': {
-        await interaction.deferReply();
+  await interaction.deferReply();
 
-        if (!ADMIN_IDS.includes(userId)) {
-          return interaction.editReply('❌ Not authorized.');
-        }
+  if (!ADMIN_IDS.includes(userId)) {
+    return interaction.editReply('❌ Not authorized.');
+  }
 
-        const team1 = interaction.options.getString('team1');
-        const team2 = interaction.options.getString('team2');
-        const odds1 = interaction.options.getNumber('odds1');
-        const odds2 = interaction.options.getNumber('odds2');
-        const oddsDraw = interaction.options.getNumber('oddsdraw');
+  const team1 = interaction.options.getString('team1');
+  const team2 = interaction.options.getString('team2');
+  const odds1 = interaction.options.getNumber('odds1');
+  const odds2 = interaction.options.getNumber('odds2');
+  const oddsDraw = interaction.options.getNumber('oddsdraw');
 
-        const matchId = getNextMatchId();
+  const matchId = getNextMatchId();
 
-        data.matches.push({
-          id: matchId,
-          team1,
-          team2,
-          odds1,
-          odds2,
-          oddsDraw,
-          result: null,
-          bets: [],
-          isOpen: true,
-        });
+  const newMatch = {
+    id: matchId,
+    team1,
+    team2,
+    odds1,
+    odds2,
+    oddsDraw,
+    result: null,
+    bets: [],
+    isOpen: true,
+  };
 
-        saveData();
+  data.matches.push(newMatch);
+  saveData();
 
-        return interaction.editReply(`✅ ${team1} vs ${team2} (ID ${matchId})`);
+  // ✅ Reply to admin
+  await interaction.editReply(`✅ Match added: ${team1} vs ${team2} (ID ${matchId})`);
+
+  // ✅ PUBLIC ANNOUNCEMENT
+  const embed = new EmbedBuilder()
+    .setTitle('📢 New Match Available')
+    .setColor(0x00AE86)
+    .addFields(
+      {
+        name: 'Match',
+        value: `${team1} vs ${team2}`,
+        inline: false,
+      },
+      {
+        name: 'Odds',
+        value: `${team1} (${odds1}) | Draw (${oddsDraw}) | ${team2} (${odds2})`,
+        inline: false,
+      },
+      {
+        name: 'Match ID',
+        value: `${matchId}`,
+        inline: true,
+      },
+      {
+        name: 'Status',
+        value: '🟢 Open for betting',
+        inline: true,
       }
+    );
+
+  await interaction.channel.send({ embeds: [embed] });
+
+  return;
+}
 
       case 'closebets': {
         await interaction.deferReply();

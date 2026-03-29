@@ -193,27 +193,39 @@ client.on('interactionCreate', async interaction => {
 
         if (!match.bets) match.bets = [];
 
-data.users[userId].balance -= amount;
-match.bets.push({
-  userId,
-  team: selectedTeam,
-  amount,
-});
+        data.users[userId].balance -= amount;
+        match.bets.push({
+          userId,
+          team: selectedTeam,
+          amount,
+        });
 
-saveData();
+        saveData();
 
-// Private confirmation to bettor
-await interaction.reply({
-  content: `✅ You bet ${amount} coins on ${selectedTeam} (ID ${match.id})`,
-  ephemeral: true,
-});
+        await interaction.reply({
+          content: `✅ You bet ${amount} coins on ${selectedTeam} (ID ${match.id})`,
+          ephemeral: true,
+        });
 
-// Public announcement in channel
-await interaction.channel.send(
-  `📢 **${interaction.user.username}** bet **${amount}** coins on **${selectedTeam}** in **${match.team1} vs ${match.team2}** (ID ${match.id})`
-);
+        const publicEmbed = new EmbedBuilder()
+          .setTitle('🎯 New Bet Placed')
+          .setColor(0x00AE86)
+          .addFields(
+            { name: 'User', value: interaction.user.username, inline: true },
+            { name: 'Amount', value: `${amount} coins`, inline: true },
+            { name: 'Pick', value: selectedTeam, inline: true },
+            {
+              name: 'Match',
+              value: `${match.team1} vs ${match.team2} (ID ${match.id})`,
+              inline: false,
+            }
+          );
 
-return;
+        await interaction.channel.send({ embeds: [publicEmbed] });
+        return;
+      }
+
+      return;
     }
 
     // =========================
@@ -334,48 +346,48 @@ return;
       }
 
       case 'bet': {
-  await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
 
-  if (data.matches.length === 0) {
-    return interaction.editReply('⚠️ No matches available.');
-  }
+        if (data.matches.length === 0) {
+          return interaction.editReply('⚠️ No matches available.');
+        }
 
-  await interaction.editReply('🎯 **Choose a team below to place your bet.**');
+        await interaction.editReply('🎯 **Choose a team below to place your bet.**');
 
-  for (const match of data.matches) {
-    const embed = new EmbedBuilder()
-      .setTitle(`Match ID ${match.id}`)
-      .setColor(0x00AE86)
-      .addFields({
-        name: `${match.team1} vs ${match.team2}`,
-        value: `**Odds:** ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`,
-        inline: false,
-      });
+        for (const match of data.matches) {
+          const embed = new EmbedBuilder()
+            .setTitle(`Match ID ${match.id}`)
+            .setColor(0x00AE86)
+            .addFields({
+              name: `${match.team1} vs ${match.team2}`,
+              value: `**Odds:** ${match.team1} (${match.odds1}) | Draw (${match.oddsDraw}) | ${match.team2} (${match.odds2})`,
+              inline: false,
+            });
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`betpick:${match.id}:team1`)
-        .setLabel(`${match.team1} (${match.odds1})`)
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId(`betpick:${match.id}:draw`)
-        .setLabel(`Draw (${match.oddsDraw})`)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`betpick:${match.id}:team2`)
-        .setLabel(`${match.team2} (${match.odds2})`)
-        .setStyle(ButtonStyle.Primary)
-    );
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`betpick:${match.id}:team1`)
+              .setLabel(`${match.team1} (${match.odds1})`)
+              .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+              .setCustomId(`betpick:${match.id}:draw`)
+              .setLabel(`Draw (${match.oddsDraw})`)
+              .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+              .setCustomId(`betpick:${match.id}:team2`)
+              .setLabel(`${match.team2} (${match.odds2})`)
+              .setStyle(ButtonStyle.Primary)
+          );
 
-    await interaction.followUp({
-      embeds: [embed],
-      components: [row],
-      ephemeral: true,
-    });
-  }
+          await interaction.followUp({
+            embeds: [embed],
+            components: [row],
+            ephemeral: true,
+          });
+        }
 
-  return;
-}
+        return;
+      }
 
       case 'leaderboard': {
         await interaction.deferReply({ ephemeral: true });

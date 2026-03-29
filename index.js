@@ -592,58 +592,139 @@ client.on('interactionCreate', async interaction => {
       }
 
       case 'setresult': {
-        await interaction.deferReply();
+  await interaction.deferReply();
 
-        if (!ADMIN_IDS.includes(userId)) {
-          return interaction.editReply('❌ Not authorized.');
-        }
+  if (!ADMIN_IDS.includes(userId)) {
+    return interaction.editReply('❌ Not authorized.');
+  }
 
-        const matchId = interaction.options.getInteger('match_id');
-        const winner = interaction.options.getString('winner');
+  const matchId = interaction.options.getInteger('match_id');
+  const winner = interaction.options.getString('winner');
 
-        const index = data.matches.findIndex(m => m.id === matchId);
-        if (index === -1) {
-          return interaction.editReply('❌ Match not found.');
-        }
+  const index = data.matches.findIndex(m => m.id === matchId);
+  if (index === -1) {
+    return interaction.editReply('❌ Match not found.');
+  }
 
-        const match = data.matches[index];
+  const match = data.matches[index];
 
-        if (![match.team1, match.team2, 'Draw'].includes(winner)) {
-          return interaction.editReply('❌ Invalid winner. Must be team1, team2, or Draw.');
-        }
+  if (![match.team1, match.team2, 'Draw'].includes(winner)) {
+    return interaction.editReply('❌ Invalid winner. Must be team1, team2, or Draw.');
+  }
 
-        let msg = `🏁 ${match.team1} vs ${match.team2}\nWinner: ${winner}\n\n`;
+  let msg = `🏁 ${match.team1} vs ${match.team2}\nWinner: ${winner}\n\n`;
 
-        for (const bet of match.bets || []) {
-          let win = false;
-          let odds = 0;
+  for (const bet of match.bets || []) {
+    let win = false;
+    let odds = 0;
 
-          if (bet.team === match.team1 && winner === match.team1) {
-            win = true;
-            odds = match.odds1;
-          } else if (bet.team === match.team2 && winner === match.team2) {
-            win = true;
-            odds = match.odds2;
-          } else if (bet.team === 'Draw' && winner === 'Draw') {
-            win = true;
-            odds = match.oddsDraw;
-          }
+    if (bet.team === match.team1 && winner === match.team1) {
+      win = true;
+      odds = match.odds1;
+    } else if (bet.team === match.team2 && winner === match.team2) {
+      win = true;
+      odds = match.odds2;
+    } else if (bet.team === 'Draw' && winner === 'Draw') {
+      win = true;
+      odds = match.oddsDraw;
+    }
 
-          if (win) {
-            const winAmount = Math.floor(bet.amount * odds);
-            ensureUser(bet.userId);
-            data.users[bet.userId].balance += winAmount;
-            msg += `✅ <@${bet.userId}> won ${winAmount}\n`;
-          } else {
-            msg += `❌ <@${bet.userId}> lost ${bet.amount}\n`;
-          }
-        }
+    try {
+      const discordUser = await client.users.fetch(bet.userId);
 
-        data.matches.splice(index, 1);
-        saveData();
+      if (win) {
+        const winAmount = Math.floor(bet.amount * odds);
+        ensureUser(bet.userId);
+        data.users[bet.userId].balance += winAmount;
 
-        return interaction.editReply(msg);
+        msg += `✅ <@${bet.userId}> won ${winAmount}\n`;
+
+        await discordUser.send({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('🎉 Your bet won!')
+              .setColor(0x00AE86)
+              .addFields(
+                {
+                  name: 'Match',
+                  value: `${match.team1} vs ${match.team2} (ID ${match.id})`,
+                  inline: false,
+                },
+                {
+                  name: 'Your Pick',
+                  value: bet.team,
+                  inline: true,
+                },
+                {
+                  name: 'Result',
+                  value: winner,
+                  inline: true,
+                },
+                {
+                  name: 'Bet Amount',
+                  value: `${bet.amount} coins`,
+                  inline: true,
+                },
+                {
+                  name: 'Winnings',
+                  value: `${winAmount} coins`,
+                  inline: true,
+                }
+              )
+          ]
+        });
+      } else {
+        msg += `❌ <@${bet.userId}> lost ${bet.amount}\n`;
+
+        await discordUser.send({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('📉 Your bet lost')
+              .setColor(0xE74C3C)
+              .addFields(
+                {
+                  name: 'Match',
+                  value: `${match.team1} vs ${match.team2} (ID ${match.id})`,
+                  inline: false,
+                },
+                {
+                  name: 'Your Pick',
+                  value: bet.team,
+                  inline: true,
+                },
+                {
+                  name: 'Result',
+                  value: winner,
+                  inline: true,
+                },
+                {
+                  name: 'Lost Amount',
+                  value: `${bet.amount} coins`,
+                  inline: true,
+                }
+              )
+          ]
+        });
       }
+    } catch (err) {
+      console.error(`Could not DM user ${bet.userId}:`, err.message);
+
+      if (win) {
+        const winAmount = Math.floor(bet.amount * odds);
+        ensureUser(bet.userId);
+        data.users[bet.userId].balance += winAmount;
+        msg += `✅ <@${bet.userId}> won ${winAmount} *(DM failed)*\n`;
+      } else {
+        msg += `❌ <@${bet.userId}> lost ${bet.amount} *(DM failed)*\n`;
+      }
+    }
+  }
+
+  data.matches.splice(index, 1);
+  saveData();
+
+  return interaction.editReply(msg);
+}
 
       default: {
         return interaction.reply({

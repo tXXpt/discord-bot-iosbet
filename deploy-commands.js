@@ -88,7 +88,11 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('leaderboard')
-    .setDescription('Top users'),
+    .setDescription('Top users by balance'),
+
+  new SlashCommandBuilder()
+    .setName('winsleaderboard')
+    .setDescription('Top 10 users by bets won'),
 
   new SlashCommandBuilder()
     .setName('deletematch')

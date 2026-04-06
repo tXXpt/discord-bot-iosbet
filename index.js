@@ -319,20 +319,32 @@ client.on('interactionCreate', async interaction => {
     ensureUser(userId);
 
     switch (interaction.commandName) {
-      case 'daily': {
-        await interaction.deferReply({ ephemeral: true });
+    case 'daily': {
+    await interaction.deferReply({ ephemeral: true });
 
-        const now = Date.now();
-        if (now - data.users[userId].lastDaily < 86400000) {
-          return interaction.editReply('⏳ Come back in 24h.');
-        }
+    const now = Date.now();
+    const cooldown = 24 * 60 * 60 * 1000; // 24h
 
-        data.users[userId].balance += 100;
-        data.users[userId].lastDaily = now;
-        saveData();
+    const timePassed = now - data.users[userId].lastDaily;
 
-        return interaction.editReply('🎁 You got 100 coins!');
-      }
+    if (timePassed < cooldown) {
+    const timeLeft = cooldown - timePassed;
+
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+
+    return interaction.editReply(
+      `⏳ Come back in ${hours}h ${minutes}m.`
+    );
+  }
+
+  data.users[userId].balance += 50; // changed from 100 → 50
+  data.users[userId].lastDaily = now;
+  saveData();
+
+  return interaction.editReply('🎁 You got 50 coins!');
+}
+      
 
       case 'balance': {
         await interaction.deferReply({ ephemeral: true });

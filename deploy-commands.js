@@ -104,6 +104,15 @@ const commands = [
     .setDescription('Top 10 users by bets won'),
 
   new SlashCommandBuilder()
+    .setName('cancelbet')
+    .setDescription('Cancel one of your bets')
+    .addIntegerOption(o =>
+      o.setName('bet_id')
+        .setDescription('ID of the bet')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
     .setName('deletematch')
     .setDescription('Delete a match')
     .addIntegerOption(o =>

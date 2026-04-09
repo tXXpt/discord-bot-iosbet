@@ -71,8 +71,25 @@ function normalizeUsers() {
   }
 }
 
+function normalizeBetIds() {
+  let nextId = 1;
+
+  for (const match of data.matches) {
+    if (!Array.isArray(match.bets)) continue;
+
+    for (const bet of match.bets) {
+      if (typeof bet.id !== 'number') {
+        bet.id = nextId++;
+      } else if (bet.id >= nextId) {
+        nextId = bet.id + 1;
+      }
+    }
+  }
+}
+
 normalizeMatches();
 normalizeUsers();
+normalizeBetIds();
 fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 
 function saveData() {
@@ -98,6 +115,22 @@ function ensureUser(userId) {
 function getNextMatchId() {
   if (data.matches.length === 0) return 1;
   return Math.max(...data.matches.map(m => m.id)) + 1;
+}
+
+function getNextBetId() {
+  let maxId = 0;
+
+  for (const match of data.matches) {
+    if (!Array.isArray(match.bets)) continue;
+
+    for (const bet of match.bets) {
+      if (typeof bet.id === 'number' && bet.id > maxId) {
+        maxId = bet.id;
+      }
+    }
+  }
+
+  return maxId + 1;
 }
 
 function getTeamFromPick(match, pick) {
@@ -268,8 +301,11 @@ client.on('interactionCreate', async interaction => {
 
         if (!match.bets) match.bets = [];
 
+        const betId = getNextBetId();
+
         data.users[userId].balance -= amount;
         match.bets.push({
+          id: betId,
           userId,
           team: selectedTeam,
           amount,
@@ -278,7 +314,7 @@ client.on('interactionCreate', async interaction => {
         saveData();
 
         await interaction.reply({
-          content: `✅ You bet ${amount} coins on ${selectedTeam} (ID ${match.id})`,
+          content: `✅ Bet placed!\nBet ID: ${betId}\n${amount} coins on ${selectedTeam} (Match ${match.id})`,
           ephemeral: true,
         });
 
@@ -289,6 +325,7 @@ client.on('interactionCreate', async interaction => {
             { name: 'User', value: interaction.user.username, inline: true },
             { name: 'Amount', value: `${amount} coins`, inline: true },
             { name: 'Pick', value: selectedTeam, inline: true },
+            { name: 'Bet ID', value: `${betId}`, inline: true },
             {
               name: 'Match',
               value: `${match.team1} vs ${match.team2} (ID ${match.id})`,
@@ -691,7 +728,7 @@ client.on('interactionCreate', async interaction => {
 
           embed.addFields({
             name: `${username}`,
-            value: `**Pick:** ${bet.team}\n**Amount:** ${bet.amount}\n**Potential Win:** ${potentialWin}`,
+            value: `**Bet ID:** ${bet.id}\n**Pick:** ${bet.team}\n**Amount:** ${bet.amount}\n**Potential Win:** ${potentialWin}`,
             inline: false,
           });
         }
@@ -731,13 +768,52 @@ client.on('interactionCreate', async interaction => {
           const potential = Math.floor(bet.amount * odds);
 
           embed.addFields({
-            name: `ID ${match.id}: ${match.team1} vs ${match.team2}`,
-            value: `**Pick:** ${bet.team}\n**Amount:** ${bet.amount}\n**Potential Win:** ${potential}`,
+            name: `Match ID ${match.id}: ${match.team1} vs ${match.team2}`,
+            value: `**Bet ID:** ${bet.id}\n**Pick:** ${bet.team}\n**Amount:** ${bet.amount}\n**Potential Win:** ${potential}`,
             inline: false,
           });
         }
 
         return interaction.editReply({ embeds: [embed] });
+      }
+
+      case 'cancelbet': {
+        await interaction.deferReply({ ephemeral: true });
+
+        const betId = interaction.options.getInteger('bet_id');
+
+        let foundMatch = null;
+        let foundBetIndex = -1;
+        let foundBet = null;
+
+        for (const match of data.matches) {
+          if (!match.isOpen || !Array.isArray(match.bets)) continue;
+
+          const index = match.bets.findIndex(
+            b => b.id === betId && b.userId === userId
+          );
+
+          if (index !== -1) {
+            foundMatch = match;
+            foundBetIndex = index;
+            foundBet = match.bets[index];
+            break;
+          }
+        }
+
+        if (!foundMatch || foundBetIndex === -1 || !foundBet) {
+          return interaction.editReply('❌ Bet not found, not yours, or already closed.');
+        }
+
+        ensureUser(userId);
+        data.users[userId].balance += foundBet.amount;
+
+        foundMatch.bets.splice(foundBetIndex, 1);
+        saveData();
+
+        return interaction.editReply(
+          `♻️ Bet cancelled!\n\n**Bet ID:** ${foundBet.id}\n**Returned:** ${foundBet.amount} coins\n**Match:** ${foundMatch.team1} vs ${foundMatch.team2}\n**Pick:** ${foundBet.team}`
+        );
       }
 
       case 'setresult': {

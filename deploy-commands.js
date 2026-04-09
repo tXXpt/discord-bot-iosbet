@@ -101,7 +101,17 @@ const commands = [
       o.setName('match_id')
         .setDescription('ID of the match to delete')
         .setRequired(true)
-    )
+    ),
+
+  new SlashCommandBuilder()
+  .setName('matchbets')
+  .setDescription('View all bets for a specific match')
+  .addIntegerOption(o =>
+    o.setName('match_id')
+      .setDescription('ID of the match')
+      .setRequired(true)
+  )
+
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
